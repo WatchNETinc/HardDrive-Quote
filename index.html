@@ -171,11 +171,11 @@
 
 <div class="container">
     <header>
-        <h1>WatchNET Hard Drives Pricing Dashboard</h1>
+        <h1>Hard Drives Pricing Dashboard</h1>
+        <p class="subtitle">Live synced with Google Sheet</p>
     </header>
 
     <div class="controls">
-        <!-- Search Box -->
         <div class="search-row">
             <div class="search-box">
                 <label for="searchInput">🔍 Search:</label>
@@ -183,7 +183,6 @@
             </div>
         </div>
 
-        <!-- Quick Capacity Filter Chips -->
         <div class="cap-filter-row">
             <label style="color: var(--text-muted); font-size: 0.85rem;">Quick Capacity Filters:</label>
             <span class="chip active" onclick="setCapacityFilter('all', this)">All</span>
@@ -208,33 +207,65 @@
                 </tr>
             </thead>
             <tbody id="driveTableBody">
-                <!-- Dynamic Rows Inserted Here -->
+                <tr><td colspan="4" class="empty-message">Loading live pricing from Google Sheet...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // DATASET UPDATED WITH "Selling Price (D1S, All price Levels) & Servers" VALUES
-    const sheetData = [
-        { item: "WD-2TB-SATA-AV", capacity: 2, finalPrice: 281.00, availability: "Available" },
-        { item: "WD-4TB-SATA-AV", capacity: 4, finalPrice: 427.00, availability: "Available" },
-        { item: "WD-6TB-SATA-PU", capacity: 6, finalPrice: 555.71, availability: "Available" },
-        { item: "WD-8TB-SATA-PU", capacity: 8, finalPrice: 784.29, availability: "N/A" },
-        { item: "WD-10TB-SATA-PU", capacity: 10, finalPrice: 852.00, availability: "N/A" },
-        { item: "SEA-SKY1TB", capacity: 1, finalPrice: 284.29, availability: "Available" },
-        { item: "SEA-SKY2TB", capacity: 2, finalPrice: 318.67, availability: "N/A" },
-        { item: "SEA-SKY4TB", capacity: 4, finalPrice: 427.14, availability: "N/A" },
-        { item: "SEA-SKY6TB", capacity: 6, finalPrice: 456.00, availability: "N/A" },
-        { item: "SEA-SKY8TB", capacity: 8, finalPrice: 770.00, availability: "Available" },
-        { item: "SEA-SKY10TB", capacity: 10, finalPrice: 899.00, availability: "Available" },
-        { item: "SEA-SKY12TB", capacity: 12, finalPrice: 1027.00, availability: "Available" },
-        { item: "SEA-SKY16TB", capacity: 16, finalPrice: 1164.00, availability: "N/A" },
-        { item: "SEA-SKY20TB", capacity: 20, finalPrice: 1499.00, availability: "N/A" },
-        { item: "WD-22TB", capacity: 22, finalPrice: 1399.00, availability: "N/A" }
-    ];
+    // REPLACE THIS URL WITH YOUR APPS SCRIPT WEB APP URL FROM STEP 1
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLd4AYX8FWrP3ALsYmoN5m8aZyj_iy-ErhmVzuHw5xZY9UpdVd75Wr9iJf02kxqEZ4/exec';
 
+    let sheetData = [];
     let activeCapFilter = 'all';
+
+    async function fetchLiveSheetData() {
+        try {
+            const response = await fetch(APPS_SCRIPT_URL);
+            const rows = await response.json();
+            processData(rows);
+        } catch (err) {
+            console.error("Error loading JSON:", err);
+            document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="4" class="empty-message" style="color:red;">Error fetching pricing data. Please verify your Apps Script deployment.</td></tr>`;
+        }
+    }
+
+    function processData(rows) {
+        sheetData = [];
+        if (!rows || rows.length < 2) return;
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length < 5) continue;
+
+            const item = row[0] ? String(row[0]).trim() : '';
+            if (!item || item.toLowerCase() === 'item') continue;
+
+            // Column E (index 4): "Selling Price (D1S, All price Levels) & Servers"
+            const rawPrice = row[4] !== undefined ? String(row[4]).replace(/[^0-9.]/g, '') : '0';
+            const finalPrice = parseFloat(rawPrice) || 0;
+
+            // Availability status
+            let availability = '';
+            for (let c = row.length - 1; c >= 5; c--) {
+                const val = row[c] !== undefined ? String(row[c]).trim().toLowerCase() : '';
+                if (val === 'available' || val === 'n/a') {
+                    availability = String(row[c]).trim();
+                    break;
+                }
+            }
+
+            let cap = 0;
+            const match = item.match(/(\d+)\s*TB/i);
+            if (match) cap = parseInt(match[1]);
+
+            if (item) {
+                sheetData.push({ item, capacity: cap, finalPrice, availability });
+            }
+        }
+        renderTable();
+    }
 
     function setCapacityFilter(cap, element) {
         activeCapFilter = cap;
@@ -259,15 +290,10 @@
         const tbody = document.getElementById('driveTableBody');
         tbody.innerHTML = '';
 
-        // STRICT FILTER: Only show items where availability is strictly "Available"
         const filteredDrives = sheetData.filter(drive => {
-            if (drive.availability.toLowerCase() !== "available") {
-                return false;
-            }
+            if (drive.availability.toLowerCase() !== "available") return false;
 
-            if (activeCapFilter !== 'all' && drive.capacity.toString() !== activeCapFilter) {
-                return false;
-            }
+            if (activeCapFilter !== 'all' && drive.capacity.toString() !== activeCapFilter) return false;
 
             if (!rawSearch) return true;
 
@@ -295,8 +321,8 @@
         });
     }
 
-    // Initial render on page load
-    renderTable();
+    // Load data on page load
+    fetchLiveSheetData();
 </script>
 
 </body>
