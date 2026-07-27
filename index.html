@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hard Drives Pricing Dashboard</title>
+    <title>WatchNET Hard Drives Pricing Dashboard</title>
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -30,6 +30,9 @@
         }
 
         header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
             margin-bottom: 24px;
         }
 
@@ -41,6 +44,34 @@
         p.subtitle {
             margin: 0;
             color: var(--text-muted);
+        }
+
+        .refresh-widget {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--card-bg);
+            padding: 8px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .refresh-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--primary-hover);
         }
 
         .controls {
@@ -171,8 +202,16 @@
 
 <div class="container">
     <header>
-        <h1>Hard Drives Pricing Dashboard</h1>
-        <p class="subtitle">Live synced with Google Sheet</p>
+        <div>
+            <h1>Hard Drives Pricing Dashboard</h1>
+            <p class="subtitle">Live synced with Google Sheet</p>
+        </div>
+        
+        <!-- Live Countdown & Manual Refresh -->
+        <div class="refresh-widget">
+            <span>Syncing in <strong id="timerText">30</strong>s</span>
+            <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh Now</button>
+        </div>
     </header>
 
     <div class="controls">
@@ -214,8 +253,12 @@
 </div>
 
 <script>
-    // REPLACE THIS URL WITH YOUR APPS SCRIPT WEB APP URL FROM STEP 1
+    // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLd4AYX8FWrP3ALsYmoN5m8aZyj_iy-ErhmVzuHw5xZY9UpdVd75Wr9iJf02kxqEZ4/exec';
+
+    const REFRESH_INTERVAL = 30; // Seconds between automatic updates
+    let countdown = REFRESH_INTERVAL;
+    let timerId = null;
 
     let sheetData = [];
     let activeCapFilter = 'all';
@@ -225,10 +268,33 @@
             const response = await fetch(APPS_SCRIPT_URL);
             const rows = await response.json();
             processData(rows);
+            resetTimer();
         } catch (err) {
             console.error("Error loading JSON:", err);
             document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="4" class="empty-message" style="color:red;">Error fetching pricing data. Please verify your Apps Script deployment.</td></tr>`;
         }
+    }
+
+    function startTimer() {
+        if (timerId) clearInterval(timerId);
+        timerId = setInterval(() => {
+            countdown--;
+            document.getElementById('timerText').innerText = countdown;
+            if (countdown <= 0) {
+                fetchLiveSheetData();
+            }
+        }, 1000);
+    }
+
+    function resetTimer() {
+        countdown = REFRESH_INTERVAL;
+        document.getElementById('timerText').innerText = countdown;
+        startTimer();
+    }
+
+    function manualRefresh() {
+        document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="4" class="empty-message">Refreshing pricing...</td></tr>`;
+        fetchLiveSheetData();
     }
 
     function processData(rows) {
@@ -321,7 +387,7 @@
         });
     }
 
-    // Load data on page load
+    // Initial load
     fetchLiveSheetData();
 </script>
 
