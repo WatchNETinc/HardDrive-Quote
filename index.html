@@ -25,7 +25,7 @@
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 1000px;
             margin: 0 auto;
         }
 
@@ -190,12 +190,6 @@
         .badge-av { background-color: #dbeafe; color: #1e40af; }
         .badge-datacenter { background-color: #fef3c7; color: #b45309; }
 
-        .desc-text {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            line-height: 1.3;
-        }
-
         .price-highlight {
             font-weight: 700;
             color: var(--success);
@@ -255,13 +249,12 @@
                     <th>Item</th>
                     <th>Capacity</th>
                     <th>Grade</th>
-                    <th>Description</th>
                     <th>HDD Price</th>
                     <th>Availability</th>
                 </tr>
             </thead>
             <tbody id="driveTableBody">
-                <tr><td colspan="6" class="empty-message">Loading live pricing from Google Sheet...</td></tr>
+                <tr><td colspan="5" class="empty-message">Loading live pricing from Google Sheet...</td></tr>
             </tbody>
         </table>
     </div>
@@ -286,7 +279,7 @@
             resetTimer();
         } catch (err) {
             console.error("Error loading JSON:", err);
-            document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="6" class="empty-message" style="color:red;">Error fetching pricing data. Please verify your Apps Script deployment.</td></tr>`;
+            document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="5" class="empty-message" style="color:red;">Error fetching pricing data. Please verify your Apps Script deployment.</td></tr>`;
         }
     }
 
@@ -308,48 +301,27 @@
     }
 
     function manualRefresh() {
-        document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="6" class="empty-message">Refreshing pricing...</td></tr>`;
+        document.getElementById('driveTableBody').innerHTML = `<tr><td colspan="5" class="empty-message">Refreshing pricing...</td></tr>`;
         fetchLiveSheetData();
     }
 
-    function getGradeAndDesc(item) {
+    function getGradeBadge(item) {
         const clean = item.toUpperCase();
 
         if (clean.includes('-AV')) {
-            return {
-                badge: `<span class="badge badge-av">AV / Video Grade</span>`,
-                desc: `Standard 24/7 Audio/Video streaming drive for basic DVR setups.`
-            };
+            return `<span class="badge badge-av">AV / Video Grade</span>`;
         }
         if (clean.includes('22TB') || clean.includes('WD-22')) {
-            return {
-                badge: `<span class="badge badge-datacenter">Enterprise Data Center</span>`,
-                desc: `Commercial enterprise-class drive engineered for high-density storage servers.`
-            };
+            return `<span class="badge badge-datacenter">Enterprise Data Center</span>`;
         }
         if (clean.includes('SKY10') || clean.includes('SKY12') || clean.includes('SKY16') || clean.includes('SKY20') || clean.includes('10TB-SATA-PU')) {
-            return {
-                badge: `<span class="badge badge-ai">Enterprise / AI Grade</span>`,
-                desc: `High-capacity drive built for AI video analytics, deep learning NVRs & heavy workloads.`
-            };
+            return `<span class="badge badge-ai">Enterprise / AI Grade</span>`;
         }
-        if (clean.includes('-PU')) {
-            return {
-                badge: `<span class="badge badge-surv">Surveillance Grade</span>`,
-                desc: `WD Purple 24/7 continuous HD recording for multi-camera NVR/DVR systems.`
-            };
-        }
-        if (clean.includes('SKY')) {
-            return {
-                badge: `<span class="badge badge-surv">Surveillance Grade</span>`,
-                desc: `Seagate SkyHawk 24/7 surveillance drive with ImagePerfect frame-loss prevention.`
-            };
+        if (clean.includes('-PU') || clean.includes('SKY')) {
+            return `<span class="badge badge-surv">Surveillance Grade</span>`;
         }
         
-        return {
-            badge: `<span class="badge badge-surv">Surveillance Grade</span>`,
-            desc: `24/7 continuous video surveillance storage drive.`
-        };
+        return `<span class="badge badge-surv">Surveillance Grade</span>`;
     }
 
     function processData(rows) {
@@ -423,19 +395,21 @@
             return matchesCapacity || matchesItem;
         });
 
+        // Alphabetical sort (A-Z) so SEA- appears above WD-
+        filteredDrives.sort((a, b) => a.item.localeCompare(b.item));
+
         if (filteredDrives.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty-message">No available hard drives found matching your criteria.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="empty-message">No available hard drives found matching your criteria.</td></tr>`;
             return;
         }
 
         filteredDrives.forEach(drive => {
             const tr = document.createElement('tr');
-            const meta = getGradeAndDesc(drive.item);
+            const gradeBadge = getGradeBadge(drive.item);
             tr.innerHTML = `
                 <td><strong>${drive.item}</strong></td>
                 <td><strong>${drive.capacity} TB</strong></td>
-                <td>${meta.badge}</td>
-                <td class="desc-text">${meta.desc}</td>
+                <td>${gradeBadge}</td>
                 <td class="price-highlight">$${drive.finalPrice.toFixed(2)}</td>
                 <td><span class="badge badge-surv">${drive.availability}</span></td>
             `;
